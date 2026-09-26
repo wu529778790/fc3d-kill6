@@ -68,6 +68,11 @@ type view struct {
 	SSQRing   string
 	SSQ       *SSQView
 	Pat       *PatView
+
+	MultiCSS   string // 多彩种页签 CSS（含选中态规则）
+	MultiBar   string // 多彩种页签 radio（隐藏式选中开关）
+	MultiBtns  string // 多彩种页签按钮（与 3D/双色球同一个 nav 内）
+	MultiPanes string // 多彩种页签面板
 }
 
 // ringSVG 生成 6 杀全中率环形进度（path 圆弧，规避 transform 解析问题）
@@ -160,7 +165,7 @@ h1{font-size:44px;font-weight:700;letter-spacing:.5px}
 .terms dd{font-size:12px;line-height:1.7;color:var(--text2);margin:2px 0 0}
 .tabs{position:relative}
 .tabs>input{position:absolute;opacity:0;pointer-events:none}
-.tab-bar{display:flex;gap:8px;margin:20px 0 28px;border-bottom:1px solid var(--border);padding-bottom:14px}
+.tab-bar{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 28px;border-bottom:1px solid var(--border);padding-bottom:14px}
 .tab-btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:999px;border:1px solid var(--border-soft);background:var(--surface);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;user-select:none;transition:color .2s,border-color .2s,background .2s}
 .tab-btn .tab-ico{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;font:700 10px var(--font-num);background:var(--surface2);border:1px solid var(--border-soft);color:var(--text3)}
 .tab-btn:hover{color:var(--text1);border-color:rgba(34,211,238,.4)}
@@ -407,6 +412,7 @@ footer{padding:22px 0 10px;gap:8px}
 .foot-text{font-size:10px}
 }
 @media (min-width:1024px){.pred-grid{display:none}}
+{{.MultiCSS}}
 </style>
 </head>
 <body>
@@ -432,9 +438,11 @@ footer{padding:22px 0 10px;gap:8px}
   <div class="tabs">
     <input type="radio" name="lot" id="tab-3d" checked>
     <input type="radio" name="lot" id="tab-ssq">
+    {{.MultiBar}}
     <nav class="tab-bar">
       <label class="tab-btn" for="tab-3d"><span class="tab-ico">3D</span>福彩3D</label>
       <label class="tab-btn" for="tab-ssq"><span class="tab-ico">球</span>双色球</label>
+      {{.MultiBtns}}
     </nav>
     <div class="tab-pane" id="pane-3d">
   <main>
@@ -769,6 +777,7 @@ footer{padding:22px 0 10px;gap:8px}
     </details>
   </main>
     </div>
+    {{.MultiPanes}}
   </div>
 
   <footer>
@@ -812,8 +821,8 @@ footer{padding:22px 0 10px;gap:8px}
 </body>
 </html>`
 
-// GenerateHTML 渲染完整页面（Rows 自动转为最新在前）
-func GenerateHTML(m backtest.Meta, pred backtest.Predict, rows []backtest.Row, b Banners, nextIssue string, wf []backtest.WFWindow, sv *SSQView, pr *pattern.BacktestResult) (string, error) {
+// GenerateHTML 渲染完整页面（Rows 自动转为最新在前；mv 为多彩种页签，可为 nil）
+func GenerateHTML(m backtest.Meta, pred backtest.Predict, rows []backtest.Row, b Banners, nextIssue string, wf []backtest.WFWindow, sv *SSQView, pr *pattern.BacktestResult, mv *MultiViews) (string, error) {
 	funcs := template.FuncMap{
 		"pctW": func(v, max int) int {
 			if max <= 0 {
@@ -874,6 +883,12 @@ func GenerateHTML(m backtest.Meta, pred backtest.Predict, rows []backtest.Row, b
 	}
 	if sv != nil {
 		data.SSQRing = ringSVG(sv.Meta.BluePct)
+	}
+	if mv != nil {
+		data.MultiCSS = mv.multiCSS()
+		data.MultiBar = mv.multiRadios()
+		data.MultiBtns = mv.multiBtns()
+		data.MultiPanes = mv.multiPanes()
 	}
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, data); err != nil {

@@ -19,7 +19,7 @@ func TestGenerateHTMLCore(t *testing.T) {
 	}
 	wf := []backtest.WFWindow{{Label: "100期", N: 100, All6: 81, All6Pct: 81.0, BeatPP: 29.8, Z: 6.0, PVal: 0.0001}}
 
-	html, err := GenerateHTML(m, pred, rows, Banners{}, "2026223", wf, minSSQView(), nil)
+	html, err := GenerateHTML(m, pred, rows, Banners{}, "2026223", wf, minSSQView(), nil, nil)
 	if err != nil {
 		t.Fatalf("GenerateHTML: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestGenerateHTMLWithSSQ(t *testing.T) {
 	pred := backtest.Predict{H: 2, T: 3, O: 0, H2: 4, T2: 0, O2: 3}
 	rows := []backtest.Row{{Issue: "2026222", Date: "2026-08-20", Open: "380", All6OK: true}}
 	sv := minSSQView()
-	html, err := GenerateHTML(m, pred, rows, Banners{}, "2026223", nil, sv, nil)
+	html, err := GenerateHTML(m, pred, rows, Banners{}, "2026223", nil, sv, nil, nil)
 	if err != nil {
 		t.Fatalf("GenerateHTML: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestGenerateHTMLWithPattern(t *testing.T) {
 			pattern.SumTO: {Kind: pattern.SumTO, HitCount: 1, Picks: []int{7}},
 		},
 	}
-	html, err := GenerateHTML(m, pred, rows, Banners{}, "2026223", nil, minSSQView(), pr)
+	html, err := GenerateHTML(m, pred, rows, Banners{}, "2026223", nil, minSSQView(), pr, nil)
 	if err != nil {
 		t.Fatalf("GenerateHTML: %v", err)
 	}

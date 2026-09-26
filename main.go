@@ -11,10 +11,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"fc3d-kill6/backtest"
 	"fc3d-kill6/data"
+	"fc3d-kill6/engine/num"
 	"fc3d-kill6/engine/pattern"
 	"fc3d-kill6/engine/ssq"
 	"fc3d-kill6/fetch"
@@ -28,7 +33,6 @@ func main() {
 	htmlPath := flag.String("html", "index.html", "输出 HTML 路径")
 	kill6Path := flag.String("kill6", "kill6_history.json", "kill6 监控历史 JSON 路径")
 	flag.Parse()
-
 	fmt.Println("=" + repeat("=", 30))
 	fmt.Println("福彩3D 六杀 + 双色球统计 · 云端更新 (Go)")
 	fmt.Println("=" + repeat("=", 30))
@@ -147,10 +151,102 @@ func main() {
 	fmt.Printf("  📊 杀%d红+杀%d蓝: 全中%.1f%% (基线%.1f%%) · 最新期 %s\n",
 		ssqRes.Meta.RedN, ssqRes.Meta.BlueN, ssqRes.Meta.AllPct, ssqRes.Meta.BaseAll, ssqRes.Meta.LatestIssue)
 
+	// Step 4.6: 多彩种（排列3/排列5/七星彩/大乐透/七乐彩/快乐8）
+	multi := &report.MultiViews{}
+	for _, g := range data.MultiGames {
+		csvP := filepath.Join(filepath.Dir(*csvPath), g.Key+"-history.csv")
+		fmt.Printf("\n🎯 %s 统计...\n", g.Name)
+		lt, alive := fetch.FetchLatestNum(g, csvP)
+		var nextHint string
+		if lt != nil {
+			nextHint = lt.NextIssue
+			added, err := data.AppendNumCSV(csvP, g, data.NumDraw{Issue: lt.Issue, Date: lt.Date, Nums: lt.Nums})
+			if err != nil {
+				fmt.Printf("  ❌ %s 追加失败: %v\n", g.Name, err)
+			} else if added == 1 {
+				fmt.Printf("  ✅ %s 已追加第%s期 (%s)\n", g.Name, lt.Issue, lt.Date)
+			}
+		} else if !alive {
+			fmt.Printf("  ⚠️ %s 数据源全挂，继续用旧数据\n", g.Name)
+		}
+		drawsN, err := data.LoadNumCSV(csvP, g)
+		if err != nil || len(drawsN) < 101 {
+			fmt.Printf("  ❌ %s 数据不足 (%d 期)，跳过页签。先用 tools/import_multi 导入全量历史。\n", g.Name, len(drawsN))
+			continue
+		}
+		nextIssue := nextIssueNum(nextHint, drawsN)
+		if g.Digit {
+			res, win, wf := backtest.DigitBacktest(drawsN)
+			m := res.Meta
+			fmt.Printf("  📊 近%d期 3杀全中 %.1f%% (基线72.9%%) · 6杀全中 %.1f%% (基线51.2%%) · 全量%d期\n", m.BacktestN, m.AccPeriod100, m.Period6Pct100, m.Total)
+
+			rows := res.Rows
+			if len(rows) > 15 {
+				rows = rows[len(rows)-15:]
+			}
+			rev := make([]backtest.Row, len(rows))
+			for i := range rows {
+				rev[len(rows)-1-i] = rows[i]
+			}
+			multi.Digits = append(multi.Digits, &report.DigitView{
+				Game: g, Meta: m, Pred: res.Pred, NextIssue: nextIssue, Rows: rev,
+			})
+			_ = win
+			_ = wf
+		} else {
+			cfg, ok := backtest.NumCfgFor(g)
+			if !ok {
+				continue
+			}
+			res := backtest.NumBacktest(drawsN, g, cfg)
+			m := res.Meta
+
+			fmt.Printf("  📊 轻杀%d主区全避开 %.1f%% (基线%.1f%%) · 全量%d期\n", m.KillAN, m.AllPct, m.BaseAll, m.Total)
+			nv := &report.NumView{Game: g, Meta: m, NextIssue: nextIssue}
+			if deepCfg, ok := backtest.NumCfgDeepFor(g); ok {
+				deep := backtest.NumBacktest(drawsN, g, deepCfg).Meta
+				deep.Rows = nil // 深杀口径只取汇总指标
+				deep.WF = nil
+				nv.Deep = &deep
+				fmt.Printf("  📊 深杀%d主区全避开 %.1f%% (基线%.1f%%)\n", deep.KillAN, deep.AllPct, deep.BaseAll)
+			}
+			statWin := 20
+			if len(drawsN) < statWin {
+				statWin = len(drawsN)
+			}
+			hot := num.Freq(drawsN, statWin, areaMaxOf(g, 0))
+			for i, j := 0, len(hot)-1; i < j; i, j = i+1, j-1 {
+				hot[i], hot[j] = hot[j], hot[i]
+			}
+			if len(hot) > 8 {
+				nv.Hot = hot[:8]
+			} else {
+				nv.Hot = hot
+			}
+			allFreq := num.Freq(drawsN, statWin, areaMaxOf(g, 0))
+			cold := make([]num.NumFreq, len(allFreq))
+			for i, r := range allFreq {
+				cold[i] = num.NumFreq{Num: r.Num, Freq: r.Freq}
+			}
+			sort.SliceStable(cold, func(a, b int) bool { return cold[a].Freq < cold[b].Freq })
+			if len(cold) > 8 {
+				cold = cold[:8]
+			}
+			nv.Cold = cold
+			missAll := num.Miss(drawsN, statWin, areaMaxOf(g, 0))
+			sort.SliceStable(missAll, func(a, b int) bool { return missAll[a].Miss > missAll[b].Miss })
+			if len(missAll) > 8 {
+				missAll = missAll[:8]
+			}
+			nv.MissTop = missAll
+			multi.Nums = append(multi.Nums, nv)
+		}
+	}
+
 	// Step 5: 生成 HTML
 	nextIssue := fetch.NextIssueCalc(m.LatestIssue, m.LatestDate, nextIssueHint(newData))
 	banners := report.Banners{DataFailed: !dataAlive}
-	html, err := report.GenerateHTML(m, bt.Pred, bt.Rows, banners, nextIssue, wf, ssqView, pat)
+	html, err := report.GenerateHTML(m, bt.Pred, bt.Rows, banners, nextIssue, wf, ssqView, pat, multi)
 	if err != nil {
 		fmt.Printf("❌ HTML 生成失败: %v\n", err)
 		os.Exit(1)
@@ -235,6 +331,50 @@ func ssqNextIssue(lt *fetch.LatestSSQ, issue, date string) string {
 		return lt.NextIssue
 	}
 	return fetch.NextIssueCalc(issue, date, "")
+}
+
+// nextIssueNum 多彩种下一期期号：数据源 next_code 优先；
+// 兜底兼容两种期号格式——7 位（2026258，年4+序3）与 5 位（26110，年2+序3）。
+func nextIssueNum(hint string, draws []data.NumDraw) string {
+	if hint != "" {
+		return hint
+	}
+	if len(draws) == 0 {
+		return ""
+	}
+	issue := draws[len(draws)-1].Issue
+	date := draws[len(draws)-1].Date
+	if n := fetch.NextIssueCalc(issue, date, ""); n != "" {
+		return n
+	}
+	// 5 位期号兜底（NextIssueCalc 只处理 ≥7 位）
+	if len(issue) == 5 {
+		yy, e1 := strconv.Atoi(issue[:2])
+		seq, e2 := strconv.Atoi(issue[2:])
+		if e1 == nil && e2 == nil {
+			if d, e3 := time.Parse("2006-01-02", date); e3 == nil && d.Month() == 12 && d.Day() == 31 {
+				return fmt.Sprintf("%02d001", (yy+1)%100)
+			}
+			return fmt.Sprintf("%02d%03d", yy, seq+1)
+		}
+	}
+	return ""
+}
+
+// areaMaxOf 多彩种主/副区号码上限（与 backtest.NumCfgFor 一致）
+func areaMaxOf(g data.GameDef, area int) int {
+	switch g.Key {
+	case "dlt":
+		if area == 0 {
+			return 35
+		}
+		return 12
+	case "qlc":
+		return 30
+	case "kl8":
+		return 80
+	}
+	return g.MaxVal
 }
 
 func repeat(s string, n int) string {

@@ -177,9 +177,6 @@ h1{font-size:44px;font-weight:700;letter-spacing:.5px}
 .cmp-label{font-size:10px;color:var(--text3)}
 .warn{display:flex;align-items:center;gap:12px;padding:18px 22px;margin-top:40px;border-radius:12px;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.4);font-size:13px;color:#FDBA74;line-height:1.7}
 .warn-icon{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(251,191,36,.14);border:1.5px solid rgba(251,191,36,.6);font:700 13px var(--font-num);color:var(--amber)}
-.upgrade-alert{display:flex;flex-direction:column;gap:6px;padding:16px 22px;border-radius:12px;margin-bottom:24px;background:linear-gradient(135deg,rgba(185,28,28,.85),rgba(220,38,38,.8));border:1px solid rgba(248,113,113,.5);font-size:13px;line-height:1.7;color:#FECACA}
-.upgrade-alert .ua-title{font-size:15px;font-weight:800;color:#FEE2E2}
-.upgrade-alert .ua-sub{font-size:11px;opacity:.85}
 .data-alert{display:flex;flex-direction:column;gap:6px;padding:16px 22px;border-radius:12px;margin-bottom:24px;background:linear-gradient(135deg,rgba(230,81,0,.85),rgba(245,124,0,.8));border:1px solid rgba(251,146,60,.5);font-size:13px;line-height:1.7;color:#FED7AA}
 .data-alert .da-title{font-size:15px;font-weight:800;color:#FFEDD5}
 .table-wrap{border-radius:14px;border:1px solid var(--border);overflow:hidden;background:rgba(18,26,43,.6)}
@@ -341,9 +338,6 @@ footer{padding:22px 0 10px;gap:8px}
   <main>
 
 
-<div class="upgrade-alert"><div class="ua-title">算法表现预警</div>滚动 100 期 6 杀全中率出现明显下滑：<br>• 64.00% 跌破 70.00% 预警阈值<br>• 单月下滑 14.00%pp (从2026-08-26的78.00%%) 超过 8.00%pp<br><span class="ua-sub">预警条件：滚动100期跌破 70% 或 单月下滑超 8pp · 仅作趋势监控参考</span></div>
-
-
     <section class="hero">
       <div class="hero-top">
         <div class="hero-left">
@@ -459,11 +453,11 @@ footer{padding:22px 0 10px;gap:8px}
     <section class="section">
       <div class="section-head">
         <h2 class="section-title">6 杀率趋势</h2>
-        <span class="section-meta">滚动 100 期 · 每日自动记录 · 虚线为 70% 预警线与 51.2% 随机基线</span>
-        <p class="section-note">人话：曲线往上 = 最近排得更准；跌到红色虚线以下，就是该警惕的时候。</p>
+        <span class="section-meta">滚动 100 期 · 每日自动记录 · 虚线为 51.2% 随机基线</span>
+        <p class="section-note">人话：曲线往上 = 最近排得更准；曲线持续下行 = 前期高光期滑出窗口，属正常回落。</p>
       </div>
       <div class="trend-card">
-        <svg viewBox="0 0 600 200" role="img" aria-label="6杀全中率趋势折线图"><line x1="10.0" y1="89.8" x2="560.0" y2="89.8" stroke="#F87171" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/><text x="564.0" y="92.8" fill="#F87171" font-size="10" font-family="'SF Mono',ui-monospace,Menlo,monospace">70%</text><line x1="10.0" y1="143.8" x2="560.0" y2="143.8" stroke="#64748B" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/><text x="564.0" y="146.8" fill="#64748B" font-size="10" font-family="'SF Mono',ui-monospace,Menlo,monospace">51.2%</text><polyline points="10.0,107.1 15.6,108.1 21.1,106.2 26.7,104.3 32.2,102.4 37.8,100.4 43.3,98.4 48.9,99.4 54.4,100.4 60.0,98.3 65.6,99.4 71.1,100.5 76.7,101.6 82.2,99.4 87.8,100.5 93.3,101.6 98.9,102.8 104.4,100.5 110.0,98.2 115.6,99.4 121.1,97.0 126.7,98.2 132.2,95.7 137.8,93.2 143.3,90.6 148.9,91.7 154.4,89.0 160.0,86.3 165.6,83.4 171.1,84.6 176.7,85.7 182.2,86.9 187.8,88.1 193.3,85.1 198.9,82.0 204.4,78.8 210.0,79.9 215.6,76.6 221.1,73.1 226.7,74.3 232.2,70.7 237.8,71.8 243.3,73.0 248.9,69.2 254.4,70.3 260.0,71.5 265.6,67.5 271.1,68.7 276.7,69.9 282.2,65.6 287.8,66.8 293.3,62.3 298.9,57.5 304.4,58.6 310.0,59.8 315.6,61.1 321.1,55.9 326.7,57.1 332.2,51.5 337.8,52.7 343.3,53.9 348.9,55.2 354.4,56.6 360.0,58.0 365.6,59.5 371.1,52.9 376.7,45.9 382.2,38.5 387.8,39.5 393.3,40.7 398.9,32.4 404.4,33.4 410.0,34.4 415.6,35.6 421.1,36.8 426.7,38.1 432.2,39.5 437.8,41.1 443.3,42.8 448.9,44.7 454.4,46.7 460.0,49.0 465.6,35.6 471.1,37.4 476.7,39.5 482.2,41.9 487.8,44.7 493.3,47.8 498.9,51.5 504.4,55.9 510.0,61.1 515.6,67.5 521.1,75.5 526.7,44.7 532.2,51.5 537.8,61.1 543.3,75.5 548.9,3.6 554.4,3.6 560.0,3.6" fill="none" stroke="#34D399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="10.0" cy="107.1" r="3.5" fill="#34D399"/><text x="16.0" y="99.1" fill="#34D399" font-size="13" font-weight="600" font-family="'SF Mono',ui-monospace,Menlo,monospace">64.0%</text><circle cx="560.0" cy="3.6" r="2.5" fill="#64748B"/></svg>
+        <svg viewBox="0 0 600 200" role="img" aria-label="6杀全中率趋势折线图"><line x1="10.0" y1="143.8" x2="560.0" y2="143.8" stroke="#64748B" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/><text x="564.0" y="146.8" fill="#64748B" font-size="10" font-family="'SF Mono',ui-monospace,Menlo,monospace">51.2%</text><polyline points="10.0,107.1 15.6,108.1 21.1,106.2 26.7,104.3 32.2,102.4 37.8,100.4 43.3,98.4 48.9,99.4 54.4,100.4 60.0,98.3 65.6,99.4 71.1,100.5 76.7,101.6 82.2,99.4 87.8,100.5 93.3,101.6 98.9,102.8 104.4,100.5 110.0,98.2 115.6,99.4 121.1,97.0 126.7,98.2 132.2,95.7 137.8,93.2 143.3,90.6 148.9,91.7 154.4,89.0 160.0,86.3 165.6,83.4 171.1,84.6 176.7,85.7 182.2,86.9 187.8,88.1 193.3,85.1 198.9,82.0 204.4,78.8 210.0,79.9 215.6,76.6 221.1,73.1 226.7,74.3 232.2,70.7 237.8,71.8 243.3,73.0 248.9,69.2 254.4,70.3 260.0,71.5 265.6,67.5 271.1,68.7 276.7,69.9 282.2,65.6 287.8,66.8 293.3,62.3 298.9,57.5 304.4,58.6 310.0,59.8 315.6,61.1 321.1,55.9 326.7,57.1 332.2,51.5 337.8,52.7 343.3,53.9 348.9,55.2 354.4,56.6 360.0,58.0 365.6,59.5 371.1,52.9 376.7,45.9 382.2,38.5 387.8,39.5 393.3,40.7 398.9,32.4 404.4,33.4 410.0,34.4 415.6,35.6 421.1,36.8 426.7,38.1 432.2,39.5 437.8,41.1 443.3,42.8 448.9,44.7 454.4,46.7 460.0,49.0 465.6,35.6 471.1,37.4 476.7,39.5 482.2,41.9 487.8,44.7 493.3,47.8 498.9,51.5 504.4,55.9 510.0,61.1 515.6,67.5 521.1,75.5 526.7,44.7 532.2,51.5 537.8,61.1 543.3,75.5 548.9,3.6 554.4,3.6 560.0,3.6" fill="none" stroke="#34D399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="10.0" cy="107.1" r="3.5" fill="#34D399"/><text x="16.0" y="99.1" fill="#34D399" font-size="13" font-weight="600" font-family="'SF Mono',ui-monospace,Menlo,monospace">64.0%</text><circle cx="560.0" cy="3.6" r="2.5" fill="#64748B"/></svg>
       </div>
     </section>
     
@@ -2660,11 +2654,14 @@ footer{padding:22px 0 10px;gap:8px}
   </footer>
 </div>
 <script>
-// wx-auth-sdk 可选认证（jsdmirror 主源 + jsdelivr 兜底，加载失败静默不影响页面）
+// wx-auth-sdk 可选认证（jsdmirror 主源 + jsdelivr 兜底，加载失败静默不影响页面）。
+// 不锁版本（@latest）：SDK 侧更新后本页自动跟进，无需改代码。
+// 1.2.36+ 为小程序扫码登录，打开弹窗即出码，全程无需输入验证码；
+// 已认证用户（7 天滑动 Cookie）静默通过，不弹窗。
 (function () {
   var CDNS = [
-    'https://cdn.jsdmirror.com/npm/wx-auth-sdk@1.2.10/dist/wx-auth.umd.js',
-    'https://cdn.jsdelivr.net/npm/wx-auth-sdk@1.2.10/dist/wx-auth.umd.js'
+    'https://cdn.jsdmirror.com/npm/wx-auth-sdk@latest/dist/wx-auth.umd.js',
+    'https://cdn.jsdelivr.net/npm/wx-auth-sdk@latest/dist/wx-auth.umd.js'
   ];
   var css = document.createElement('link');
   css.rel = 'stylesheet';

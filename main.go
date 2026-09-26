@@ -149,7 +149,7 @@ func main() {
 
 	// Step 5: 生成 HTML
 	nextIssue := fetch.NextIssueCalc(m.LatestIssue, m.LatestDate, nextIssueHint(newData))
-	banners := report.Banners{DataUpgrade: triggered, UpgradeReasons: reasons, DataFailed: !dataAlive}
+	banners := report.Banners{DataFailed: !dataAlive}
 	html, err := report.GenerateHTML(m, bt.Pred, bt.Rows, banners, nextIssue, wf, ssqView, pat)
 	if err != nil {
 		fmt.Printf("❌ HTML 生成失败: %v\n", err)

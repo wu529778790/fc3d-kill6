@@ -99,8 +99,11 @@ func TestTrendSVG(t *testing.T) {
 		{All6OK: true}, {All6OK: false}, {All6OK: true}, {All6OK: true}, {All6OK: true},
 	}
 	svg := trendSVG(rows)
-	if !strings.Contains(svg, "51.2") || !strings.Contains(svg, "70%") {
-		t.Errorf("趋势图缺少基线/预警线: %s", svg)
+	if !strings.Contains(svg, "51.2") {
+		t.Errorf("趋势图缺少随机基线: %s", svg)
+	}
+	if strings.Contains(svg, "70%") || strings.Contains(svg, "#F87171") {
+		t.Errorf("趋势图不应再包含 70%% 红色预警线: %s", svg)
 	}
 	if !strings.Contains(svg, "polyline") {
 		t.Errorf("趋势图缺少 polyline: %s", svg)

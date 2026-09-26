@@ -23,9 +23,7 @@ type Data struct {
 
 // Banners 页面顶部横幅
 type Banners struct {
-	DataUpgrade    bool // 算法表现预警（红条）
-	UpgradeReasons []string
-	DataFailed     bool // 数据源全挂（橙条）
+	DataFailed bool // 数据源全挂（橙条）
 }
 
 // SSQView 双色球页签数据（统计工具版）
@@ -281,9 +279,6 @@ h1{font-size:44px;font-weight:700;letter-spacing:.5px}
 .cmp-label{font-size:10px;color:var(--text3)}
 .warn{display:flex;align-items:center;gap:12px;padding:18px 22px;margin-top:40px;border-radius:12px;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.4);font-size:13px;color:#FDBA74;line-height:1.7}
 .warn-icon{width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(251,191,36,.14);border:1.5px solid rgba(251,191,36,.6);font:700 13px var(--font-num);color:var(--amber)}
-.upgrade-alert{display:flex;flex-direction:column;gap:6px;padding:16px 22px;border-radius:12px;margin-bottom:24px;background:linear-gradient(135deg,rgba(185,28,28,.85),rgba(220,38,38,.8));border:1px solid rgba(248,113,113,.5);font-size:13px;line-height:1.7;color:#FECACA}
-.upgrade-alert .ua-title{font-size:15px;font-weight:800;color:#FEE2E2}
-.upgrade-alert .ua-sub{font-size:11px;opacity:.85}
 .data-alert{display:flex;flex-direction:column;gap:6px;padding:16px 22px;border-radius:12px;margin-bottom:24px;background:linear-gradient(135deg,rgba(230,81,0,.85),rgba(245,124,0,.8));border:1px solid rgba(251,146,60,.5);font-size:13px;line-height:1.7;color:#FED7AA}
 .data-alert .da-title{font-size:15px;font-weight:800;color:#FFEDD5}
 .table-wrap{border-radius:14px;border:1px solid var(--border);overflow:hidden;background:rgba(18,26,43,.6)}
@@ -446,9 +441,6 @@ footer{padding:22px 0 10px;gap:8px}
 {{if .Banners.DataFailed}}
 <div class="data-alert"><div class="da-title">数据源异常</div>所有数据源获取失败，页面为最后一次成功数据，请检查数据源（灰鸟 / 17500.cn）。</div>
 {{end}}
-{{if .Banners.DataUpgrade}}
-<div class="upgrade-alert"><div class="ua-title">算法表现预警</div>滚动 100 期 6 杀全中率出现明显下滑：<br>{{range .Banners.UpgradeReasons}}• {{.}}<br>{{end}}<span class="ua-sub">预警条件：滚动100期跌破 70% 或 单月下滑超 8pp · 仅作趋势监控参考</span></div>
-{{end}}
 
     <section class="hero">
       <div class="hero-top">
@@ -565,8 +557,8 @@ footer{padding:22px 0 10px;gap:8px}
     <section class="section">
       <div class="section-head">
         <h2 class="section-title">6 杀率趋势</h2>
-        <span class="section-meta">滚动 100 期 · 每日自动记录 · 虚线为 70% 预警线与 51.2% 随机基线</span>
-        <p class="section-note">人话：曲线往上 = 最近排得更准；跌到红色虚线以下，就是该警惕的时候。</p>
+        <span class="section-meta">滚动 100 期 · 每日自动记录 · 虚线为 51.2% 随机基线</span>
+        <p class="section-note">人话：曲线往上 = 最近排得更准；曲线持续下行 = 前期高光期滑出窗口，属正常回落。</p>
       </div>
       <div class="trend-card">
         <svg viewBox="0 0 600 200" role="img" aria-label="6杀全中率趋势折线图">{{.TrendSVG}}</svg>
@@ -786,11 +778,14 @@ footer{padding:22px 0 10px;gap:8px}
   </footer>
 </div>
 <script>
-// wx-auth-sdk 可选认证（jsdmirror 主源 + jsdelivr 兜底，加载失败静默不影响页面）
+// wx-auth-sdk 可选认证（jsdmirror 主源 + jsdelivr 兜底，加载失败静默不影响页面）。
+// 不锁版本（@latest）：SDK 侧更新后本页自动跟进，无需改代码。
+// 1.2.36+ 为小程序扫码登录，打开弹窗即出码，全程无需输入验证码；
+// 已认证用户（7 天滑动 Cookie）静默通过，不弹窗。
 (function () {
   var CDNS = [
-    'https://cdn.jsdmirror.com/npm/wx-auth-sdk@1.2.10/dist/wx-auth.umd.js',
-    'https://cdn.jsdelivr.net/npm/wx-auth-sdk@1.2.10/dist/wx-auth.umd.js'
+    'https://cdn.jsdmirror.com/npm/wx-auth-sdk@latest/dist/wx-auth.umd.js',
+    'https://cdn.jsdelivr.net/npm/wx-auth-sdk@latest/dist/wx-auth.umd.js'
   ];
   var css = document.createElement('link');
   css.rel = 'stylesheet';
@@ -987,8 +982,6 @@ func trendSVG(rows []backtest.Row) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#F87171" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>`, padL, y(70), W-padR, y(70)))
-	sb.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#F87171" font-size="10" font-family="'SF Mono',ui-monospace,Menlo,monospace">70%%</text>`, W-padR+4, y(70)+3))
 	sb.WriteString(fmt.Sprintf(`<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="#64748B" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>`, padL, y(51.2), W-padR, y(51.2)))
 	sb.WriteString(fmt.Sprintf(`<text x="%.1f" y="%.1f" fill="#64748B" font-size="10" font-family="'SF Mono',ui-monospace,Menlo,monospace">51.2%%</text>`, W-padR+4, y(51.2)+3))
 	sb.WriteString(`<polyline points="` + strings.Join(pts, " ") + `" fill="none" stroke="#34D399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`)

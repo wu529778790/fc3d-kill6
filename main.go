@@ -39,6 +39,25 @@ func main() {
 
 	// Step 1: 获取最新开奖
 	fmt.Println("📡 获取最新开奖...")
+
+	// Step 1a: 先补历史缺口（数据源中断期间会漏期，正常抓数只补最新一期；
+	// 必须先补：若最新期先入 CSV，缺口期号都小于它，按升序追加就再也没机会补上）
+	if missing, err := fetch.FetchMissing(*csvPath); err != nil {
+		fmt.Printf("  ⚠️ 缺口检查失败: %v\n", err)
+	} else if len(missing) > 0 {
+		added := 0
+		for _, d := range missing {
+			n, err := data.AppendCSV(*csvPath, d)
+			if err != nil {
+				fmt.Printf("  ❌ 补缺口追加失败(%s): %v\n", d.Issue, err)
+				break
+			}
+			added += n
+		}
+		fmt.Printf("  ✅ 补缺口 %d 期: %s ~ %s\n", added, missing[0].Issue, missing[len(missing)-1].Issue)
+	}
+
+	// Step 1b: 抓最新一期
 	newData, dataAlive := fetch.FetchLatest(*csvPath)
 	if newData != nil {
 		added, err := data.AppendCSV(*csvPath, data.Draw{

@@ -5,16 +5,21 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"fc3d-kill6/data"
 )
 
-// 模拟 17500.cn 真实 TXT 格式（每行: 期号 日期 百 十 个 + 10 附加数字）
+// 17500 全量 TXT 的两种历史格式：
+//   - 旧格式 15 列（期号 日期 百 十 个 + 10 附加数字）
+//   - 2026-11 起 17 列（行尾多出销售额等两列），曾导致「取末尾 15 列」把期号读成号码
 const mock17500 = `2026201 2026-07-30 3 2 1 0 0 0 0 0 0 0 0 0 0 0
 2026202 2026-07-31 9 8 8 0 0 0 0 0 0 0 0 0 0 0
 2026222 2026-08-20 3 8 0 0 0 0 0 0 0 0 0 0 0
+`
+
+const mock17500Wide = `2026313 2026-11-23 3 4 6 0 3 2 1 1 106369536 0 1040 0 346 0 173
+2026314 2026-11-24 5 8 4 6 5 5 1 1 104678984 0 1040 0 346 0 173
 `
 
 func TestFetch17500Parse(t *testing.T) {
@@ -24,18 +29,7 @@ func TestFetch17500Parse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// 通过反射替换 URL 不现实，直接测试核心解析逻辑
-	body := []byte(mock17500)
-	fields := strings.Fields(strings.TrimSpace(string(body)))
-	if len(fields) < 15 {
-		t.Fatalf("字段不足: %d", len(fields))
-	}
-	last := fields[len(fields)-15:]
-	if last[0] != "2026222" || last[1] != "2026-08-20" || last[2] != "3" || last[3] != "8" || last[4] != "0" {
-		t.Fatalf("解析失败: %v", last[:5])
-	}
-	// 验证 fetch17500 的解析逻辑等价实现
-	lt, err := parse17500Line(body)
+	lt, err := parse17500Line([]byte(mock17500))
 	if err != nil {
 		t.Fatalf("parse17500Line: %v", err)
 	}
@@ -43,6 +37,56 @@ func TestFetch17500Parse(t *testing.T) {
 		t.Fatalf("结果错误: %+v", lt)
 	}
 	_ = srv
+}
+
+// 2026-11 起 17500 行尾附加列变多，必须按行取前 5 列而不是按列数截取
+func TestFetch17500ParseWideFormat(t *testing.T) {
+	lt, err := parse17500Line([]byte(mock17500Wide))
+	if err != nil {
+		t.Fatalf("parse17500Line: %v", err)
+	}
+	if lt.Issue != "2026314" || lt.Date != "2026-11-24" || lt.B != 5 || lt.S != 8 || lt.G != 4 {
+		t.Fatalf("宽格式解析错误: %+v", lt)
+	}
+}
+
+// 补缺口：漏期（如抓数中断 10 天）必须能一次补齐，且只用大于本地最新期的记录
+func TestFetchMissingGap(t *testing.T) {
+	body := []byte(mock17500 + `
+2026305 2026-11-15 5 2 4 0 0 1 1 1 100000 0 1040 0 346 0 173
+2026306 2026-11-16 9 1 3 0 0 1 1 1 100000 0 1040 0 346 0 173
+`)
+	all := Parse17500All(body)
+	// 升序（尽管输入有乱行顺序）
+	for i := 1; i < len(all); i++ {
+		if all[i].Issue < all[i-1].Issue {
+			t.Fatalf("Parse17500All 未按升序: %s < %s", all[i].Issue, all[i-1].Issue)
+		}
+	}
+	gap := missingAfter(all, "2026222")
+	if len(gap) != 2 || gap[0].Issue != "2026305" || gap[1].Issue != "2026306" {
+		t.Fatalf("补缺口结果错误: %+v", gap)
+	}
+	if gap[0].B != 5 || gap[0].S != 2 || gap[0].G != 4 {
+		t.Fatalf("补缺口号码错误: %+v", gap[0])
+	}
+	if len(missingAfter(all, "2026999")) != 0 {
+		t.Fatal("本地已是最新时不应产生补缺记录")
+	}
+}
+
+// 表头/空行/脏行不能被当成开奖数据
+func TestFetch17500ParseSkipsJunkTail(t *testing.T) {
+	body := mock17500Wide + "\n"
+	if _, err := parse17500Line([]byte(body)); err != nil {
+		t.Fatalf("尾部空行不应出错: %v", err)
+	}
+	if _, err := parse17500Line([]byte("issue date b s g\n")); err == nil {
+		t.Fatal("表头不应被解析成开奖数据")
+	}
+	if _, err := parse17500Line([]byte("2026314 2026-11-24\n")); err == nil {
+		t.Fatal("字段不足不应被解析成功")
+	}
 }
 
 func TestAppendCSVIdempotent(t *testing.T) {

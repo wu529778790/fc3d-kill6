@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -97,41 +98,103 @@ func fetchHuiniao() (*Latest, error) {
 	}, nil
 }
 
-// 17500.cn：官方级全量 TXT（每行: 期号 日期 百 十 个 ...），带 429 重试
+// 17500.cn：官方级全量 TXT（每行: 期号 日期 百 十 个 [附加列...]），带 429 重试。
+// 直连 data.17500.cn 的升序存档：www.17500.cn/getData/ 只会 302 到该文件，
+// 且 2026-11 起行尾附加列（试机号/销售额等）从 15 列变为 17 列，定宽截取会解析错位。
 func fetch17500() (*Latest, error) {
-	const url = "https://www.17500.cn/getData/3d.TXT"
-	uas := []string{
-		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-		"Python-urllib/3.11",
+	body, err := fetch17500Body()
+	if err != nil {
+		return nil, err
 	}
+	return parse17500Line(body)
+}
+
+const h17500URL = "https://data.17500.cn/3d_asc.txt"
+
+var h17500UAs = []string{
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+	"Python-urllib/3.11",
+}
+
+// fetch17500Body 下载 17500 全量 TXT，带 429 限流重试（换 UA 重试 3 次）。
+func fetch17500Body() ([]byte, error) {
 	var body []byte
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		body, lastErr = httpGet(url, uas[attempt%len(uas)])
+		body, lastErr = httpGet(h17500URL, h17500UAs[attempt%len(h17500UAs)])
 		if lastErr == nil {
-			break
+			return body, nil
 		}
-		time.Sleep(2 * time.Second) // 429 限流等待重试
+		time.Sleep(2 * time.Second)
 	}
-	if lastErr != nil {
-		return nil, lastErr
+	return nil, lastErr
+}
+
+// Parse17500All 解析 17500 全量 TXT 的全部合法数据行（按期号升序）。
+func Parse17500All(body []byte) []data.Draw {
+	out := make([]data.Draw, 0, 8192)
+	for _, line := range strings.Split(string(body), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 5 {
+			continue
+		}
+		lt, err := latestFromLast5(f[0], f[1], f[2], f[3], f[4])
+		if err != nil {
+			continue
+		}
+		out = append(out, data.Draw{Issue: lt.Issue, Date: lt.Date, B: lt.B, S: lt.S, G: lt.G})
 	}
-	return parse17500Line(body)
+	sort.Slice(out, func(i, j int) bool { return out[i].Issue < out[j].Issue })
+	return out
+}
+
+// FetchMissing 补历史缺口：抓数源中断一天就漏一期，而正常抓数只补最新一期，
+// 缺口会永久留在 CSV 里。这里下载 17500 全量 TXT，返回期号大于本地最新期的所有期（升序），
+// 由调用方按期号顺序追加，保证 CSV 不被追加成乱序。
+func FetchMissing(csvPath string) ([]data.Draw, error) {
+	var last string
+	if draws, err := data.LoadCSV(csvPath); err == nil {
+		last = data.LastIssue(draws)
+	}
+	body, err := fetch17500Body()
+	if err != nil {
+		return nil, err
+	}
+	return missingAfter(Parse17500All(body), last), nil
+}
+
+// missingAfter 返回期号严格大于 last 的记录（入参已升序）。
+func missingAfter(all []data.Draw, last string) []data.Draw {
+	out := []data.Draw{}
+	for _, d := range all {
+		if d.Issue > last {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // errTooFew 17500 数据字段不足
 var errTooFew = fmt.Errorf("17500 数据字段不足")
 
-// parse17500Line 解析 17500 全量 TXT（每行 15 列: 期号 日期 百 十 个 + 10 附加数字），
-// 取行尾最新一期。
+// parse17500Line 解析 17500 全量 TXT：逐行从末尾往前找第一条合法数据行，取其前 5 列
+// （期号 日期 百 十 个）。行尾附加列数量会随数据源改版变化（历史 15 列、2026-11 起 17 列），
+// 因此不做定宽截取，避免期号错位成号码。
 func parse17500Line(body []byte) (*Latest, error) {
-	fields := strings.Fields(strings.TrimSpace(string(body)))
-	if len(fields) < 15 {
-		return nil, errTooFew
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		fields := strings.Fields(lines[i])
+		if len(fields) < 5 {
+			continue
+		}
+		lt, err := latestFromLast5(fields[0], fields[1], fields[2], fields[3], fields[4])
+		if err != nil {
+			continue // 表头/脏行跳过
+		}
+		return lt, nil
 	}
-	last := fields[len(fields)-15:]
-	return latestFromLast5(last[0], last[1], last[2], last[3], last[4])
+	return nil, errTooFew
 }
 
 func latestFromLast5(issue, date, bs, ss, gs string) (*Latest, error) {

@@ -5,5 +5,8 @@ fc3d-kill6
 *.test
 *.out
 
+# Pages 部署产物目录（CI 中临时生成）
+_site/
+
 # Agent 工作目录（会话记忆，不入库）
 .workbuddy/

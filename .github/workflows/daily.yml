@@ -22,7 +22,12 @@ jobs:
 
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
+
+    # 同一时间只允许一次 Pages 部署，避免脏并发
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
 
     steps:
       - name: 检出代码
@@ -54,12 +59,29 @@ jobs:
             git push origin main
           fi
 
+      - name: 准备 Pages 产物
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+
       - name: 上传 Pages 产物
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_site'
           name: github-pages
 
+      # deploy-pages 偶发在上传刚结束时查不到产物（Found 0 artifact(s)），
+      # 先失败不中断，等产物元数据同步后重试一次。
       - name: 部署到 GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: 等待产物同步
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 15
+
+      - name: 部署重试
+        id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
